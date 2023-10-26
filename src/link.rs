@@ -19,6 +19,7 @@ use ark_ff::{ToConstraintField, Zero};
 use ark_relations::r1cs::SynthesisError;
 use ark_std::rand::{CryptoRng, Rng};
 use linkg16::{groth16, LinkedProof};
+use std::time::Instant;
 
 #[derive(Clone)]
 pub struct PredPublicInputs<E: PairingEngine>(Vec<E::G1Projective>);
@@ -219,6 +220,7 @@ mod test {
         let mut rng = ark_std::test_rng();
         let tree_height = 32;
 
+        let mut start_time = Instant::now();
         // Generate the predicate circuit's CRS
         let tree_proving_key = gen_tree_memb_crs::<
             _,
@@ -230,10 +232,23 @@ mod test {
             TestTreeHG,
         >(&mut rng, MERKLE_CRH_PARAM.clone(), tree_height)
         .unwrap();
+        let mut elapsed_time = start_time.elapsed();
 
+        println!("Generate the 'tree_memb' predicate circuit's CRS: {:?}", elapsed_time);
+        
+        start_time = Instant::now();
         // Make a attribute to put in the tree
         let person = NameAndBirthYear::new(&mut rng, b"Andrew", 1992);
         let person_com = Attrs::<_, TestComSchemePedersen>::commit(&person);
+
+        // let person2 = NameAndBirthYear::new(&mut rng, b"Tim", 1999);
+        // let person2_com = Attrs::<_, TestComSchemePedersen>::commit(&person2);
+
+        // elapsed_time = start_time.elapsed();
+        // println!("Make a attribute to put in the tree: {:?}", elapsed_time);
+
+
+        // start_time = Instant::now();
 
         // Make a tree and "issue", i.e., put the person commitment in the tree at index 17
         let leaf_idx = 17;
@@ -250,12 +265,41 @@ mod test {
         let tree_verif_key = tree_proving_key.prepare_verifying_key();
         assert!(verify_tree_memb(&tree_verif_key, &tree_proof, &person_com, &merkle_root).unwrap());
 
+        elapsed_time = start_time.elapsed();
+        println!("Prove put in the tree and make verify path: {:?}", elapsed_time);
+
+        // start_time = Instant::now();
+
+        // // Make a tree and "issue", i.e., put the person commitment in the tree at index 17
+        // let leaf_idx2 = 21;
+        // let auth_path2 = tree.insert(leaf_idx2, &person2_com);
+
+        // // The person can now prove membership in the tree. Calculate the root and prove wrt that
+        // // root.
+        // let merkle_root2 = tree.root();
+        // let tree_proof2 = auth_path2
+        //     .prove_membership(&mut rng, &tree_proving_key, &*MERKLE_CRH_PARAM, person2_com)
+        //     .unwrap();
+
+        // let tree_verif_key = tree_proving_key.prepare_verifying_key();
+        // assert!(verify_tree_memb(&tree_verif_key, &tree_proof2, &person2_com, &merkle_root2).unwrap());
+
+        // elapsed_time = start_time.elapsed();
+        // println!("Prove2 put in the tree and make verify path: {:?}", elapsed_time);
+
         // Prove a predicate
+
+        start_time = Instant::now();
 
         // We choose that anyone born in 2001 or earlier satisfies our predicate
         let age_checker = AgeChecker {
             threshold_birth_year: Fr::from(2001u16),
         };
+
+        elapsed_time = start_time.elapsed();
+        println!("init ageChecker: {:?}", elapsed_time);
+
+        start_time = Instant::now();
 
         // Generate the predicate circuit's CRS
         let pred_pk = gen_pred_crs::<_, _, E, _, _, _, _, TestTreeH, TestTreeHG>(
@@ -263,6 +307,11 @@ mod test {
             age_checker.clone(),
         )
         .unwrap();
+
+        elapsed_time = start_time.elapsed();
+        println!("Generate the predicate circuit's CRS: {:?}", elapsed_time);
+
+        start_time = Instant::now();
 
         // Prove the predicate
         let pred_proof =
@@ -281,6 +330,33 @@ mod test {
         )
         .unwrap());
 
+        elapsed_time = start_time.elapsed();
+        println!("Prove the predicate: {:?}", elapsed_time);
+
+        // start_time = Instant::now();
+
+        // // Prove the predicate
+        // let pred_proof2 =
+        //     prove_pred(&mut rng, &pred_pk, age_checker.clone(), person2, &auth_path2).unwrap();
+
+        // // Ordinarily we wouldn't be able to verify a predicate proof, since it requires knowledge
+        // // of the attribute commitment. But this is testing mode and we know this value, so let's
+        // // make sure the predicate proof verifies.
+        // let pred_verif_key = pred_pk.prepare_verifying_key();
+        // assert!(verify_pred(
+        //     &pred_verif_key,
+        //     &pred_proof2,
+        //     &age_checker,
+        //     &person2_com,
+        //     &merkle_root2
+        // )
+        // .unwrap());
+
+        // elapsed_time = start_time.elapsed();
+        // println!("Prove2 the predicate: {:?}", elapsed_time);
+
+        start_time = Instant::now();
+
         // Prove that the tree is in the forest
 
         // Make a forest of 10 trees, with our tree occursing at a random index in the forest
@@ -295,9 +371,19 @@ mod test {
         forest.trees.insert(rand_idx, tree);
         let roots = forest.roots();
 
+        elapsed_time = start_time.elapsed();
+        println!("Prove that the tree is in the forest: {:?}", elapsed_time);
+
+        start_time = Instant::now();
+
         // Collect the predicate public inputs
         let mut pred_inputs = PredPublicInputs::default();
         pred_inputs.prepare_pred_checker(&pred_verif_key, &age_checker);
+
+        elapsed_time = start_time.elapsed();
+        println!("Collect the predicate public inputs: {:?}", elapsed_time);
+
+        start_time = Instant::now();
 
         // Generate the forest circuit's CRS
         let forest_pk = gen_forest_memb_crs::<
@@ -318,6 +404,35 @@ mod test {
             .verify_memb(&forest_verif_key, &forest_proof, &person_com, &merkle_root)
             .unwrap());
 
+        elapsed_time = start_time.elapsed();
+        println!("Generate the forest circuit's CRS: {:?}", elapsed_time);
+
+        start_time = Instant::now();
+
+        // Generate the forest circuit's CRS
+        // let forest_pk = gen_forest_memb_crs::<
+        //     _,
+        //     E,
+        //     NameAndBirthYear,
+        //     TestComSchemePedersen,
+        //     TestComSchemePedersenG,
+        //     TestTreeH,
+        //     TestTreeHG,
+        // >(&mut rng, num_trees)
+        // .unwrap();
+        // let forest_proof2 = roots
+        //     .prove_membership(&mut rng, &forest_pk, merkle_root2, person2_com)
+        //     .unwrap();
+        // let forest_verif_key = forest_pk.prepare_verifying_key();
+        // assert!(roots
+        //     .verify_memb(&forest_verif_key, &forest_proof2, &person2_com, &merkle_root2)
+        //     .unwrap());
+
+        // elapsed_time = start_time.elapsed();
+        // println!("Generate2 the forest circuit's CRS: {:?}", elapsed_time);
+
+        start_time = Instant::now();
+
         // Now link everything together
         let link_vk = LinkVerifyingKey {
             pred_inputs: pred_inputs.clone(),
@@ -334,9 +449,27 @@ mod test {
             pred_proofs: vec![pred_proof],
             vk: link_vk.clone(),
         };
+        // let link_ctx2 = LinkProofCtx {
+        //     attrs_com: person2_com,
+        //     merkle_root: root,
+        //     forest_proof: forest_proof2,
+        //     tree_proof: tree_proof2,
+        //     pred_proofs: vec![pred_proof2],
+        //     vk: link_vk.clone(),
+        // };
         let link_proof = link_proofs(&mut rng, &link_ctx);
+        // let link_proof2 = link_proofs(&mut rng, &link_ctx2);
+
+        elapsed_time = start_time.elapsed();
+        println!("link everything together: {:?}", elapsed_time);
+
+        start_time = Instant::now();
 
         // Verify the link proof
         assert!(verif_link_proof(&link_proof, &link_vk).unwrap());
+        // assert!(verif_link_proof(&link_proof2, &link_vk).unwrap());
+
+        elapsed_time = start_time.elapsed();
+        println!("Verify the link proof: {:?}", elapsed_time);
     }
 }
