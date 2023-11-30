@@ -217,7 +217,7 @@ mod test {
     /// Tests a predicate that returns true iff the given `NameAndBirthYear` is at least 21
     #[test]
     fn test_link() {
-        let mut rng = ark_std::test_rng();
+        let mut rng: rand::prelude::StdRng = ark_std::test_rng();
         let tree_height = 32;
 
         let mut start_time = Instant::now();
@@ -234,7 +234,7 @@ mod test {
         .unwrap();
         let mut elapsed_time = start_time.elapsed();
 
-        println!("Generate the 'tree_memb' predicate circuit's CRS: {:?}", elapsed_time);
+        println!("Generate the 'tree_memb' circuit's CRS: {:?}", elapsed_time);
         
         start_time = Instant::now();
         // Make a attribute to put in the tree

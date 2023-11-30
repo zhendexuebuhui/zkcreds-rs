@@ -4,6 +4,7 @@ pub mod com_forest;
 pub mod com_tree;
 pub mod compressed_pedersen;
 pub mod link;
+pub mod evaluation;
 pub mod multishow;
 pub mod poseidon_utils;
 pub mod pred;
